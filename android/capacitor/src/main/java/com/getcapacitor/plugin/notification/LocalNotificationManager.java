@@ -66,6 +66,8 @@ public class LocalNotificationManager {
     this.context = context;
     this.config = config;
   }
+  Logger.debug(Logger.tags("LN"), "LocalNotification received: ", Build.VERSION_CODES);
+
 
   /**
    * Method extecuted when notification is launched by user from the notification bar.
@@ -241,7 +243,12 @@ public class LocalNotificationManager {
     // Open intent
     Intent intent = buildIntent(localNotification, DEFAULT_PRESS_ACTION);
 
-    PendingIntent pendingIntent = PendingIntent.getActivity(context, localNotification.getId(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
+    int flags = PendingIntent.FLAG_CANCEL_CURRENT;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        flags = flags | PendingIntent.FLAG_MUTABLE;
+    }
+
+    PendingIntent pendingIntent = PendingIntent.getActivity(context, localNotification.getId(), intent, flags);
     mBuilder.setContentIntent(pendingIntent);
 
     // Build action types
@@ -252,7 +259,7 @@ public class LocalNotificationManager {
         NotificationAction notificationAction = actionGroup[i];
         // TODO Add custom icons to actions
         Intent actionIntent = buildIntent(localNotification, notificationAction.getId());
-        PendingIntent actionPendingIntent = PendingIntent.getActivity(context, localNotification.getId() + notificationAction.getId().hashCode(), actionIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+        PendingIntent actionPendingIntent = PendingIntent.getActivity(context, localNotification.getId() + notificationAction.getId().hashCode(), actionIntent, flags);
         NotificationCompat.Action.Builder actionBuilder = new NotificationCompat.Action.Builder(R.drawable.ic_transparent, notificationAction.getTitle(), actionPendingIntent);
         if (notificationAction.isInput()) {
           RemoteInput remoteInput = new RemoteInput.Builder(REMOTE_INPUT_KEY)
@@ -271,8 +278,12 @@ public class LocalNotificationManager {
     dissmissIntent.putExtra(ACTION_INTENT_KEY, "dismiss");
     LocalNotificationSchedule schedule = localNotification.getSchedule();
     dissmissIntent.putExtra(NOTIFICATION_IS_REMOVABLE_KEY, schedule == null || schedule.isRemovable());
+    flags = 0;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        flags = PendingIntent.FLAG_MUTABLE;
+    }
     PendingIntent deleteIntent = PendingIntent.getBroadcast(
-            context, localNotification.getId(), dissmissIntent, 0);
+            context, localNotification.getId(), dissmissIntent, flags);
     mBuilder.setDeleteIntent(deleteIntent);
   }
 
@@ -307,7 +318,11 @@ public class LocalNotificationManager {
     Intent notificationIntent = new Intent(context, TimedNotificationPublisher.class);
     notificationIntent.putExtra(NOTIFICATION_INTENT_KEY, request.getId());
     notificationIntent.putExtra(TimedNotificationPublisher.NOTIFICATION_KEY, notification);
-    PendingIntent pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+    int flags = PendingIntent.FLAG_CANCEL_CURRENT;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        flags = flags | PendingIntent.FLAG_MUTABLE;
+    }
+    PendingIntent pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, flags);
 
     // Schedule at specific time (with repeating support)
     Date at = schedule.getAt();
@@ -341,7 +356,7 @@ public class LocalNotificationManager {
     if (on != null) {
       long trigger = on.nextTrigger(new Date());
       notificationIntent.putExtra(TimedNotificationPublisher.CRON_KEY, on.toMatchString());
-      pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+      pendingIntent = PendingIntent.getBroadcast(context, request.getId(), notificationIntent, flags);
       alarmManager.setExact(AlarmManager.RTC, trigger, pendingIntent);
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
       Logger.debug(Logger.tags("LN"), "notification " + request.getId() + " will next fire at " + sdf.format(new Date(trigger)));
@@ -362,8 +377,12 @@ public class LocalNotificationManager {
 
   private void cancelTimerForNotification(Integer notificationId) {
     Intent intent = new Intent(context, TimedNotificationPublisher.class);
+    int flags = 0;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        flags = PendingIntent.FLAG_MUTABLE;
+    }
     PendingIntent pi = PendingIntent.getBroadcast(
-            context, notificationId, intent, 0);
+            context, notificationId, intent, flags);
     if (pi != null) {
       AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
       alarmManager.cancel(pi);
