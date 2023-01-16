@@ -66,8 +66,6 @@ public class LocalNotificationManager {
     this.context = context;
     this.config = config;
   }
-  Logger.debug(Logger.tags("LN"), "LocalNotification received: ", Build.VERSION_CODES);
-
 
   /**
    * Method extecuted when notification is launched by user from the notification bar.
